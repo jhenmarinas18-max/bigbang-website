@@ -1,0 +1,1087 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Big Bang Through Time — Interactive History</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300&family=Rajdhani:wght@300;400;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --bg:#03040c;--surface:#070a17;--surface2:#0c1128;
+  --gold:#d4a843;--gold-d:rgba(212,168,67,0.15);--gold-glow:0 0 30px rgba(212,168,67,0.4);
+  --blue:#4db8ff;--blue-d:rgba(77,184,255,0.12);--blue-glow:0 0 25px rgba(77,184,255,0.35);
+  --green:#50e3a4;--red:#ff5e7a;--purple:#a47fff;
+  --text:#e8edf8;--muted:rgba(205,213,232,0.72);
+  --r:14px;
+}
+html{scroll-behavior:smooth;cursor:none;}
+body{background:var(--bg);color:var(--text);font-family:'Rajdhani',sans-serif;font-size:18px;line-height:1.7;overflow-x:hidden;}
+
+/* ── CURSOR ── */
+#cursor{position:fixed;width:14px;height:14px;border:2px solid var(--gold);border-radius:50%;pointer-events:none;z-index:9999;transform:translate(-50%,-50%);transition:transform 0.08s,background 0.2s,border-color 0.2s;mix-blend-mode:screen;}
+#cursor.click{transform:translate(-50%,-50%) scale(2.5);background:rgba(212,168,67,0.3);}
+.cursor-dot{position:fixed;width:5px;height:5px;border-radius:50%;pointer-events:none;z-index:9998;transform:translate(-50%,-50%);animation:dotFade 0.6s forwards;}
+@keyframes dotFade{to{opacity:0;transform:translate(-50%,-50%) scale(0);}}
+
+/* ── CANVAS ── */
+#bgCanvas{position:fixed;inset:0;z-index:0;pointer-events:none;}
+
+/* ── PROGRESS BAR ── */
+#progressBar{position:fixed;top:0;left:0;height:3px;background:linear-gradient(90deg,var(--purple),var(--gold),var(--blue));z-index:200;transition:width 0.1s;width:0%;}
+
+/* ── PARTICLES ── */
+.particle{position:fixed;border-radius:50%;pointer-events:none;z-index:9997;animation:particleFly 0.9s ease-out forwards;}
+@keyframes particleFly{
+  0%{opacity:1;transform:translate(0,0) scale(1);}
+  100%{opacity:0;transform:translate(var(--px),var(--py)) scale(0);}
+}
+
+/* ── NAV ── */
+nav{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:1rem 2.5rem;background:rgba(3,4,12,0.8);backdrop-filter:blur(16px);border-bottom:1px solid rgba(255,255,255,0.06);}
+.nav-logo{font-family:'Cormorant Garamond',serif;font-size:1.1rem;font-weight:300;color:var(--gold);letter-spacing:0.06em;}
+.nav-links{display:flex;gap:2rem;list-style:none;}
+.nav-links a{font-family:'Space Mono',monospace;font-size:0.63rem;letter-spacing:0.2em;text-transform:uppercase;color:var(--muted);text-decoration:none;transition:color 0.2s;}
+.nav-links a:hover{color:var(--gold);}
+
+/* ── HERO ── */
+.hero{position:relative;z-index:1;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:2rem;overflow:hidden;}
+.hero-layer{position:absolute;inset:0;pointer-events:none;will-change:transform;}
+#layer1{background:radial-gradient(ellipse 60% 50% at 50% 50%,rgba(100,50,180,0.18) 0%,transparent 70%);}
+#layer2{background:radial-gradient(ellipse 40% 40% at 50% 50%,rgba(77,184,255,0.08) 0%,transparent 65%);}
+.hero-content{position:relative;z-index:2;}
+.hero-eyebrow{font-family:'Space Mono',monospace;font-size:0.68rem;letter-spacing:0.34em;color:var(--gold);text-transform:uppercase;margin-bottom:1.4rem;opacity:0;animation:fadeUp 0.9s 0.3s forwards;}
+.hero h1{font-family:'Cormorant Garamond',serif;font-weight:300;font-size:clamp(3.2rem,9vw,7rem);line-height:1.02;opacity:0;animation:fadeUp 0.9s 0.5s forwards;}
+.hero h1 em{font-style:italic;color:var(--gold);display:block;}
+.hero-sub{margin-top:1.4rem;max-width:540px;font-size:1rem;color:var(--muted);font-weight:300;opacity:0;animation:fadeUp 0.9s 0.7s forwards;}
+.hero-btns{display:flex;gap:1rem;justify-content:center;margin-top:2.5rem;flex-wrap:wrap;opacity:0;animation:fadeUp 0.9s 0.9s forwards;}
+.btn{display:inline-block;padding:0.72rem 2rem;border:1px solid var(--gold);color:var(--gold);font-family:'Space Mono',monospace;font-size:0.72rem;letter-spacing:0.16em;text-transform:uppercase;text-decoration:none;border-radius:2px;transition:background 0.3s,box-shadow 0.3s,color 0.3s;cursor:none;}
+.btn:hover,.btn-primary{background:var(--gold);color:var(--bg);box-shadow:var(--gold-glow);}
+.btn-secondary{border-color:var(--blue);color:var(--blue);}
+.btn-secondary:hover{background:var(--blue);color:var(--bg);box-shadow:var(--blue-glow);}
+.scroll-hint{position:absolute;bottom:2.5rem;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:0.5rem;color:var(--muted);font-family:'Space Mono',monospace;font-size:0.58rem;letter-spacing:0.22em;opacity:0;animation:fadeIn 1s 1.5s forwards;}
+.scroll-line{width:1px;height:38px;background:linear-gradient(to bottom,transparent,var(--gold));animation:scrollPulse 2s ease-in-out infinite;}
+@keyframes scrollPulse{0%,100%{opacity:0.4;transform:scaleY(1);}50%{opacity:1;transform:scaleY(1.25);}}
+
+/* ── ERA FILTER ── */
+.era-filter{position:relative;z-index:1;display:flex;gap:0.6rem;justify-content:center;flex-wrap:wrap;padding:5rem 2rem 1.5rem;}
+.era-btn{font-family:'Space Mono',monospace;font-size:0.62rem;letter-spacing:0.14em;text-transform:uppercase;padding:0.45rem 1.1rem;border:1px solid var(--border,rgba(255,255,255,0.1));border-radius:20px;background:transparent;color:var(--muted);cursor:none;transition:all 0.25s;}
+.era-btn:hover,.era-btn.active{background:var(--gold-d);border-color:var(--gold);color:var(--gold);box-shadow:var(--gold-glow);}
+.era-btn[data-era="life"].active{background:rgba(80,227,164,0.12);border-color:var(--green);color:var(--green);box-shadow:0 0 20px rgba(80,227,164,0.3);}
+.era-btn[data-era="cosmos"].active{background:var(--blue-d);border-color:var(--blue);color:var(--blue);box-shadow:var(--blue-glow);}
+
+/* ── SECTION INTRO ── */
+.sec-intro{position:relative;z-index:1;max-width:700px;margin:0 auto;padding:2rem 2rem 0.5rem;text-align:center;}
+.sec-label{font-family:'Space Mono',monospace;font-size:0.66rem;letter-spacing:0.28em;color:var(--gold);text-transform:uppercase;margin-bottom:0.8rem;}
+.sec-title{font-family:'Cormorant Garamond',serif;font-size:clamp(1.9rem,4vw,3rem);font-weight:300;line-height:1.15;margin-bottom:0.9rem;}
+.sec-desc{color:var(--muted);font-size:0.95rem;font-weight:300;}
+
+/* ── TIMELINE ── */
+.tl-wrap{position:relative;z-index:1;max-width:1080px;margin:3rem auto 0;padding:0 1.5rem 6rem;}
+.tl-wrap::before{content:'';position:absolute;left:50%;top:0;bottom:0;width:1px;background:linear-gradient(to bottom,transparent 0%,rgba(212,168,67,0.6) 5%,rgba(212,168,67,0.2) 50%,rgba(212,168,67,0.6) 95%,transparent 100%);transform:translateX(-50%);}
+
+.tl-item{display:grid;grid-template-columns:1fr 64px 1fr;gap:0;margin-bottom:3rem;opacity:0;transform:translateY(28px);transition:opacity 0.65s ease,transform 0.65s ease;}
+.tl-item.visible{opacity:1;transform:none;}
+.tl-item.hidden-filter{opacity:0.12;pointer-events:none;}
+
+.tl-item:nth-child(odd)  .tl-content{order:1;text-align:right;padding:0.2rem 1.6rem 0 0;}
+.tl-item:nth-child(odd)  .tl-node   {order:2;}
+.tl-item:nth-child(odd)  .tl-empty  {order:3;}
+.tl-item:nth-child(even) .tl-content{order:3;text-align:left;padding:0.2rem 0 0 1.6rem;}
+.tl-item:nth-child(even) .tl-node   {order:2;}
+.tl-item:nth-child(even) .tl-empty  {order:1;}
+
+.tl-node{display:flex;align-items:flex-start;justify-content:center;padding-top:1.8rem;position:relative;z-index:2;}
+.tl-dot{width:20px;height:20px;border-radius:50%;border:2px solid var(--gold);background:var(--bg);cursor:none;transition:all 0.3s;position:relative;z-index:2;}
+.tl-dot::after{content:'';position:absolute;inset:-6px;border-radius:50%;background:rgba(212,168,67,0.15);opacity:0;transition:opacity 0.3s;}
+.tl-item.active .tl-dot,.tl-dot:hover{background:var(--gold);box-shadow:var(--gold-glow);transform:scale(1.35);}
+.tl-item.active .tl-dot::after,.tl-dot:hover::after{opacity:1;animation:dotRing 1.5s ease-in-out infinite;}
+@keyframes dotRing{0%,100%{transform:scale(1);opacity:0.6;}50%{transform:scale(1.5);opacity:0;}}
+
+.tl-card{background:var(--surface);border:1px solid rgba(255,255,255,0.07);border-radius:var(--r);padding:1.4rem 1.6rem;cursor:none;transition:border-color 0.3s,box-shadow 0.3s,transform 0.25s;position:relative;overflow:hidden;}
+.tl-card::before{content:'';position:absolute;inset:0;opacity:0;transition:opacity 0.35s;border-radius:var(--r);}
+.tl-item.active .tl-card,.tl-card:hover{border-color:rgba(212,168,67,0.5);box-shadow:var(--gold-glow);transform:translateY(-3px);}
+.tl-card:hover::before,.tl-item.active .tl-card::before{opacity:1;background:linear-gradient(135deg,rgba(212,168,67,0.05),transparent);}
+.tl-item[data-era="cosmos"] .tl-card:hover,.tl-item[data-era="cosmos"].active .tl-card{border-color:rgba(77,184,255,0.5);box-shadow:var(--blue-glow);}
+.tl-item[data-era="life"] .tl-card:hover,.tl-item[data-era="life"].active .tl-card{border-color:rgba(80,227,164,0.5);box-shadow:0 0 28px rgba(80,227,164,0.3);}
+
+.tl-era-tag{font-family:'Space Mono',monospace;font-size:0.6rem;letter-spacing:0.2em;color:var(--gold);text-transform:uppercase;margin-bottom:0.35rem;}
+.tl-item[data-era="cosmos"] .tl-era-tag{color:var(--blue);}
+.tl-item[data-era="life"] .tl-era-tag{color:var(--green);}
+.tl-icon{font-size:2rem;display:block;margin-bottom:0.4rem;transition:transform 0.3s;}
+.tl-card:hover .tl-icon{transform:scale(1.2) rotate(-5deg);}
+.tl-title{font-family:'Cormorant Garamond',serif;font-size:1.4rem;font-weight:600;line-height:1.2;margin-bottom:0.5rem;}
+.tl-stamp{font-family:'Space Mono',monospace;font-size:0.68rem;letter-spacing:0.12em;color:var(--muted);margin-bottom:0.5rem;}
+.tl-desc{font-size:0.95rem;color:rgba(220,228,245,0.88);font-weight:400;line-height:1.75;max-height:0;overflow:hidden;transition:max-height 0.55s cubic-bezier(0.4,0,0.2,1),opacity 0.4s;opacity:0;}
+.tl-item.active .tl-desc{max-height:220px;opacity:1;}
+.tl-badge{display:inline-block;margin-top:0.8rem;font-family:'Space Mono',monospace;font-size:0.58rem;letter-spacing:0.14em;padding:0.22rem 0.8rem;border-radius:20px;text-transform:uppercase;}
+.tl-item[data-era="origin"] .tl-badge{border:1px solid rgba(212,168,67,0.35);color:var(--gold);}
+.tl-item[data-era="cosmos"] .tl-badge{border:1px solid rgba(77,184,255,0.35);color:var(--blue);}
+.tl-item[data-era="life"] .tl-badge{border:1px solid rgba(80,227,164,0.35);color:var(--green);}
+.tl-item:nth-child(odd) .tl-badge{display:block;text-align:right;}
+
+/* ── FACTS ── */
+.facts-sec{position:relative;z-index:1;background:var(--surface);border-top:1px solid rgba(255,255,255,0.06);border-bottom:1px solid rgba(255,255,255,0.06);padding:5rem 2rem;}
+.facts-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1.5rem;max-width:1000px;margin:3rem auto 0;}
+.fact-card{border:1px solid rgba(255,255,255,0.07);border-radius:var(--r);padding:1.8rem 1.2rem;text-align:center;transition:all 0.3s;cursor:default;}
+.fact-card:hover{border-color:rgba(77,184,255,0.4);box-shadow:var(--blue-glow);transform:translateY(-4px);}
+.fact-num{font-family:'Cormorant Garamond',serif;font-size:2.8rem;font-weight:300;color:var(--blue);line-height:1;}
+.fact-unit{font-family:'Space Mono',monospace;font-size:0.6rem;letter-spacing:0.18em;color:var(--gold);text-transform:uppercase;margin:0.3rem 0 0.6rem;}
+.fact-label{font-size:0.85rem;color:var(--muted);font-weight:300;}
+
+/* ── QUIZ ── */
+.quiz-sec{position:relative;z-index:1;max-width:700px;margin:0 auto;padding:6rem 2rem;}
+.quiz-box{background:var(--surface2);border:1px solid rgba(255,255,255,0.08);border-radius:var(--r);padding:2.5rem;margin-top:2.5rem;min-height:280px;}
+.quiz-start{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.2rem;min-height:220px;text-align:center;}
+.quiz-start p{color:var(--muted);font-size:0.95rem;font-weight:300;max-width:380px;}
+.quiz-progress{display:flex;align-items:center;gap:1rem;margin-bottom:1.8rem;}
+.quiz-bar-wrap{flex:1;height:4px;background:rgba(255,255,255,0.08);border-radius:2px;overflow:hidden;}
+.quiz-bar{height:100%;background:linear-gradient(90deg,var(--purple),var(--gold));transition:width 0.4s ease;border-radius:2px;}
+.quiz-q-num{font-family:'Space Mono',monospace;font-size:0.62rem;color:var(--gold);letter-spacing:0.14em;white-space:nowrap;}
+.quiz-question{font-family:'Cormorant Garamond',serif;font-size:1.45rem;font-weight:400;line-height:1.3;margin-bottom:1.5rem;}
+.quiz-options{display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;}
+.quiz-opt{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.09);border-radius:10px;padding:0.9rem 1rem;font-family:'Rajdhani',sans-serif;font-size:0.95rem;color:var(--text);cursor:none;transition:all 0.25s;text-align:left;line-height:1.3;}
+.quiz-opt:hover:not(:disabled){background:var(--gold-d);border-color:var(--gold);color:var(--gold);}
+.quiz-opt.correct{background:rgba(80,227,164,0.15)!important;border-color:var(--green)!important;color:var(--green)!important;animation:correctFlash 0.4s ease;}
+.quiz-opt.wrong{background:rgba(255,94,122,0.15)!important;border-color:var(--red)!important;color:var(--red)!important;animation:shake 0.4s ease;}
+@keyframes correctFlash{0%,100%{transform:scale(1);}50%{transform:scale(1.03);}}
+@keyframes shake{0%,100%{transform:translateX(0);}25%{transform:translateX(-6px);}75%{transform:translateX(6px);}}
+.quiz-feedback{margin-top:1.2rem;font-size:0.88rem;font-weight:300;min-height:1.4em;transition:opacity 0.3s;}
+.quiz-feedback.good{color:var(--green);}
+.quiz-feedback.bad{color:var(--red);}
+.quiz-score-wrap{text-align:center;padding:1rem 0;}
+.quiz-score-big{font-family:'Cormorant Garamond',serif;font-size:4.5rem;font-weight:300;color:var(--gold);line-height:1;}
+.quiz-rank{font-family:'Space Mono',monospace;font-size:0.72rem;letter-spacing:0.22em;color:var(--purple);text-transform:uppercase;margin:0.5rem 0 1rem;}
+.quiz-score-msg{font-size:0.95rem;color:var(--muted);font-weight:300;margin-bottom:1.5rem;}
+
+/* ── METHODOLOGY ── */
+.method-sec{position:relative;z-index:1;max-width:800px;margin:0 auto;padding:5rem 2rem 6rem;}
+.steps{display:flex;flex-direction:column;gap:1rem;margin-top:2.5rem;}
+.step{display:flex;align-items:flex-start;gap:1.4rem;padding:1.4rem 1.5rem;background:var(--surface);border:1px solid rgba(255,255,255,0.07);border-radius:var(--r);transition:border-color 0.3s,transform 0.25s;}
+.step:hover{border-color:rgba(212,168,67,0.35);transform:translateX(5px);}
+.step-n{font-family:'Space Mono',monospace;font-size:1.4rem;color:var(--gold);min-width:2rem;line-height:1;font-weight:700;}
+.step h3{font-family:'Cormorant Garamond',serif;font-size:1.18rem;font-weight:600;margin-bottom:0.25rem;}
+.step p{font-size:0.88rem;color:var(--muted);font-weight:300;}
+
+/* ── FOOTER ── */
+footer{position:relative;z-index:1;border-top:1px solid rgba(255,255,255,0.06);padding:3rem 2rem;text-align:center;}
+.footer-logo{font-family:'Cormorant Garamond',serif;font-size:1.5rem;font-weight:300;color:var(--gold);}
+.footer-sub{font-size:0.8rem;color:var(--muted);margin:0.3rem 0 1.2rem;letter-spacing:0.1em;}
+.footer-ref{font-family:'Space Mono',monospace;font-size:0.6rem;color:var(--muted);}
+.footer-ref a{color:var(--blue);text-decoration:none;}
+.footer-ref a:hover{text-decoration:underline;}
+
+/* ── SEARCH ── */
+.search-wrap{position:relative;z-index:50;max-width:620px;margin:0 auto;padding:3rem 2rem 0;}
+.search-inner{position:relative;display:flex;align-items:center;}
+.search-icon{position:absolute;left:1rem;color:var(--gold);font-size:1rem;pointer-events:none;z-index:1;}
+#searchInput{width:100%;background:var(--surface2);border:1px solid rgba(212,168,67,0.3);border-radius:30px;padding:0.75rem 1rem 0.75rem 2.8rem;font-family:'Rajdhani',sans-serif;font-size:1rem;color:var(--text);outline:none;transition:border-color 0.3s,box-shadow 0.3s;}
+#searchInput::placeholder{color:var(--muted);}
+#searchInput:focus{border-color:var(--gold);box-shadow:var(--gold-glow);}
+.search-results-info{text-align:center;font-family:'Space Mono',monospace;font-size:0.65rem;color:var(--gold);letter-spacing:0.15em;margin-top:0.7rem;min-height:1.2em;}
+/* Search dropdown */
+#searchDropdown{position:absolute;top:calc(100% + 0.5rem);left:0;right:0;background:var(--surface2);border:1px solid rgba(212,168,67,0.35);border-radius:14px;box-shadow:0 16px 50px rgba(0,0,0,0.8),var(--gold-glow);z-index:200;display:none;overflow:hidden;}
+#searchDropdown.open{display:block;}
+/* Tabs */
+.sd-tabs{display:flex;border-bottom:1px solid rgba(255,255,255,0.07);}
+.sd-tab{flex:1;padding:0.7rem 1rem;font-family:'Space Mono',monospace;font-size:0.62rem;letter-spacing:0.16em;text-transform:uppercase;text-align:center;cursor:pointer;color:var(--muted);transition:all 0.2s;background:transparent;border:none;}
+.sd-tab.active{color:var(--gold);border-bottom:2px solid var(--gold);background:rgba(212,168,67,0.05);}
+.sd-tab:hover:not(.active){color:var(--text);background:rgba(255,255,255,0.03);}
+.sd-tab-globe{margin-right:0.4em;}
+/* Panels */
+.sd-panel{max-height:400px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--gold) transparent;display:none;}
+.sd-panel.active{display:block;}
+.sd-panel::-webkit-scrollbar{width:4px;}
+.sd-panel::-webkit-scrollbar-thumb{background:var(--gold);border-radius:4px;}
+.sd-item{display:flex;align-items:flex-start;gap:1rem;padding:1rem 1.2rem;border-bottom:1px solid rgba(255,255,255,0.05);cursor:pointer;transition:background 0.2s;}
+.sd-item:last-child{border-bottom:none;}
+.sd-item:hover{background:rgba(212,168,67,0.08);}
+.sd-icon{font-size:1.6rem;flex-shrink:0;margin-top:0.1rem;}
+.sd-body{flex:1;min-width:0;}
+.sd-era{font-family:'Space Mono',monospace;font-size:0.58rem;letter-spacing:0.18em;text-transform:uppercase;margin-bottom:0.2rem;}
+.sd-era.origin{color:var(--gold);}
+.sd-era.cosmos{color:var(--blue);}
+.sd-era.life{color:var(--green);}
+.sd-era.web{color:var(--blue);}
+.sd-title{font-family:'Cormorant Garamond',serif;font-size:1.15rem;font-weight:600;line-height:1.2;margin-bottom:0.2rem;}
+.sd-stamp{font-family:'Space Mono',monospace;font-size:0.6rem;color:var(--muted);}
+.sd-desc{font-size:0.82rem;color:var(--muted);margin-top:0.35rem;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+.sd-empty{padding:1.8rem;text-align:center;color:var(--muted);font-family:'Space Mono',monospace;font-size:0.68rem;letter-spacing:0.1em;}
+.sd-loading{padding:1.5rem;text-align:center;color:var(--gold);font-family:'Space Mono',monospace;font-size:0.68rem;letter-spacing:0.15em;animation:pulse 1.2s ease-in-out infinite;}
+@keyframes pulse{0%,100%{opacity:0.5;}50%{opacity:1;}}
+.sd-web-badge{display:inline-block;font-family:'Space Mono',monospace;font-size:0.55rem;letter-spacing:0.1em;padding:0.15rem 0.5rem;border-radius:20px;border:1px solid rgba(77,184,255,0.4);color:var(--blue);margin-left:0.5rem;vertical-align:middle;}
+.sd-open-link{font-family:'Space Mono',monospace;font-size:0.6rem;color:var(--blue);text-decoration:none;margin-top:0.3rem;display:inline-block;}
+.sd-open-link:hover{text-decoration:underline;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(22px);}to{opacity:1;transform:none;}}
+@keyframes fadeIn{to{opacity:1;}}
+.hidden{display:none!important;}
+
+/* ── RESPONSIVE ── */
+@media(max-width:680px){
+  html{cursor:auto;}#cursor{display:none;}
+  .tl-wrap::before{left:22px;}
+  .tl-item{grid-template-columns:44px 1fr;}
+  .tl-item:nth-child(odd) .tl-content,.tl-item:nth-child(even) .tl-content{order:2;text-align:left;padding:0.2rem 0 0 1rem;}
+  .tl-item:nth-child(odd) .tl-node,.tl-item:nth-child(even) .tl-node{order:1;}
+  .tl-empty{display:none;}
+  .tl-item:nth-child(odd) .tl-card{text-align:left;}
+  .tl-item:nth-child(odd) .tl-badge{text-align:left;display:inline-block;}
+  .quiz-options{grid-template-columns:1fr;}
+  nav{padding:0.9rem 1.2rem;}
+  .nav-links{gap:1rem;}
+}
+/* ── TOOLTIP ── */
+.toast{position:fixed;bottom:2.5rem;left:50%;transform:translateX(-50%) translateY(20px);background:var(--surface2);border:1px solid var(--gold-d);border-left:3px solid var(--gold);border-radius:8px;padding:0.8rem 1.4rem;font-size:0.85rem;color:var(--text);z-index:500;opacity:0;transition:opacity 0.4s,transform 0.4s;pointer-events:none;max-width:380px;text-align:center;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.toast strong{color:var(--gold);}
+</style>
+</head>
+<body>
+
+<div id="progressBar"></div>
+<canvas id="bgCanvas"></canvas>
+<div id="cursor"></div>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-logo">Big Bang Through Time</div>
+  <ul class="nav-links">
+    <li><a href="#timeline">Timeline</a></li>
+    <li><a href="#facts">Facts</a></li>
+    <li><a href="#quiz">Quiz</a></li>
+    <li><a href="#method">Method</a></li>
+  </ul>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-layer" id="layer1"></div>
+  <div class="hero-layer" id="layer2"></div>
+  <div class="hero-content">
+    <p class="hero-eyebrow">Capstone Project · Interactive History</p>
+    <h1>Big Bang<em>Through Time</em></h1>
+    <p class="hero-sub">From the first fraction of a second to the world you know — explore 13.8 billion years of cosmic history.</p>
+    <div class="hero-btns">
+      <a href="#timeline" class="btn btn-primary">Explore Timeline</a>
+      <a href="#quiz" class="btn btn-secondary">Take the Quiz</a>
+    </div>
+  </div>
+  <div class="scroll-hint">
+    <span>Scroll to explore</span>
+    <div class="scroll-line"></div>
+  </div>
+</section>
+
+<!-- ERA FILTER -->
+<div id="timeline" class="era-filter">
+  <button class="era-btn active" data-era="all">✦ All Events</button>
+  <button class="era-btn" data-era="origin">💥 Origin &amp; Matter</button>
+  <button class="era-btn" data-era="cosmos">🌌 Stars &amp; Cosmos</button>
+  <button class="era-btn" data-era="life">🌍 Earth &amp; Life</button>
+</div>
+
+<!-- SEARCH -->
+<div class="search-wrap">
+  <div class="search-inner">
+    <span class="search-icon">🔍</span>
+    <input type="text" id="searchInput" placeholder="Search timeline events or explore the web…" autocomplete="off"/>
+    <div id="searchDropdown">
+      <div class="sd-tabs">
+        <button class="sd-tab active" data-tab="local">✦ This Site</button>
+        <button class="sd-tab" data-tab="web"><span class="sd-tab-globe">🌐</span> Web Search</button>
+      </div>
+      <div class="sd-panel active" id="sdLocal"></div>
+      <div class="sd-panel" id="sdWeb"></div>
+    </div>
+  </div>
+  <div class="search-results-info" id="searchInfo"></div>
+</div>
+
+<div class="sec-intro">
+  <p class="sec-label">13.8 Billion Years</p>
+  <h2 class="sec-title">The Universe Unfolds</h2>
+  <p class="sec-desc">Click any card to expand its story. Use the filters above to explore by era.</p>
+</div>
+
+<!-- TIMELINE -->
+<div class="tl-wrap" id="tlWrap">
+
+  <div class="tl-item" data-era="origin">
+    <div class="tl-content"><div class="tl-card">
+      <span class="tl-icon">💥</span>
+      <div class="tl-era-tag">T = 0 · Origin</div>
+      <div class="tl-title">The Big Bang</div>
+      <div class="tl-stamp">13.8 billion years ago</div>
+      <div class="tl-desc">All matter, energy, space, and time burst from an infinitely dense singularity. In the first Planck instant (~10⁻⁴³ seconds), the four fundamental forces were unified and the temperature exceeded 10³² Kelvin — beyond any known physics. Everything you see, touch, and are was compressed into a point smaller than an atom.</div>
+      <span class="tl-badge">Cosmological Origin</span>
+    </div></div>
+    <div class="tl-node"><div class="tl-dot"></div></div>
+    <div class="tl-empty"></div>
+  </div>
+
+  <div class="tl-item" data-era="origin">
+    <div class="tl-empty"></div>
+    <div class="tl-node"><div class="tl-dot"></div></div>
+    <div class="tl-content"><div class="tl-card">
+      <span class="tl-icon">🌀</span>
+      <div class="tl-era-tag">10⁻³⁶ Seconds · Origin</div>
+      <div class="tl-title">Cosmic Inflation</div>
+      <div class="tl-stamp">Faster than light expansion</div>
+      <div class="tl-desc">The universe expanded exponentially — faster than light — stretching quantum fluctuations across cosmic scales. This phase ended almost instantly but seeded the large-scale structure of everything: galaxy filaments, clusters, and vast cosmic voids. The universe grew from subatomic to macroscopic in a fraction of a second.</div>
+      <span class="tl-badge">Inflationary Epoch</span>
+    </div></div>
+  </div>
+
+  <div class="tl-item" data-era="origin">
+    <div class="tl-content"><div class="tl-card">
+      <span class="tl-icon">⚛️</span>
+      <div class="tl-era-tag">1 Microsecond · Origin</div>
+      <div class="tl-title">First Particles Form</div>
+      <div class="tl-stamp">Quarks combine into matter</div>
+      <div class="tl-desc">As the universe cooled, quarks combined into protons and neutrons. For every billion antiparticles there was one billion and one matter particle — that tiny asymmetry is the only reason the universe exists. Without it, everything would have annihilated itself into pure radiation.</div>
+      <span class="tl-badge">Quark Epoch</span>
+    </div></div>
+    <div class="tl-node"><div class="tl-dot"></div></div>
+    <div class="tl-empty"></div>
+  </div>
+
+  <div class="tl-item" data-era="origin">
+    <div class="tl-empty"></div>
+    <div class="tl-node"><div class="tl-dot"></div></div>
+    <div class="tl-content"><div class="tl-card">
+      <span class="tl-icon">🔥</span>
+      <div class="tl-era-tag">3 Minutes · Origin</div>
+      <div class="tl-title">Big Bang Nucleosynthesis</div>
+      <div class="tl-stamp">First atomic nuclei assembled</div>
+      <div class="tl-desc">Protons and neutrons fused into the first atomic nuclei: roughly 75% hydrogen and 25% helium. This process lasted only ~20 minutes before the universe cooled too much for further fusion. Virtually all the helium in the entire universe today was forged in this brief cosmic furnace.</div>
+      <span class="tl-badge">Nucleosynthesis</span>
+    </div></div>
+  </div>
+
+  <div class="tl-item" data-era="origin">
+    <div class="tl-content"><div class="tl-card">
+      <span class="tl-icon">✨</span>
+      <div class="tl-era-tag">380,000 Years · Origin</div>
+      <div class="tl-title">Recombination &amp; First Light</div>
+      <div class="tl-stamp">The universe becomes transparent</div>
+      <div class="tl-desc">The universe cooled enough for electrons to bind with nuclei into neutral atoms. For the first time, light traveled freely — this ancient glow is the Cosmic Microwave Background (CMB), the oldest light in existence. It still fills the sky today and can be detected by radio telescopes as a faint, uniform radiation from all directions.</div>
+      <span class="tl-badge">Cosmic Microwave Background</span>
+    </div></div>
+    <div class="tl-node"><div class="tl-dot"></div></div>
+    <div class="tl-empty"></div>
+  </div>
+
+  <div class="tl-item" data-era="cosmos">
+    <div class="tl-empty"></div>
+    <div class="tl-node"><div class="tl-dot"></div></div>
+    <div class="tl-content"><div class="tl-card">
+      <span class="tl-icon">🌑</span>
+      <div class="tl-era-tag">380K – 200M Years · Cosmos</div>
+      <div class="tl-title">The Cosmic Dark Ages</div>
+      <div class="tl-stamp">No stars, no light sources</div>
+      <div class="tl-desc">The universe contained only neutral hydrogen and helium — no stars, no light. Dark matter slowly pulled gas into clumps. This era ended when the first stars ignited, a period called Cosmic Dawn, when ultraviolet radiation tore through the darkness and reionized hydrogen across the universe.</div>
+      <span class="tl-badge">Dark Ages</span>
+    </div></div>
+  </div>
+
+  <div class="tl-item" data-era="cosmos">
+    <div class="tl-content"><div class="tl-card">
+      <span class="tl-icon">⭐</span>
+      <div class="tl-era-tag">~200 Million Years · Cosmos</div>
+      <div class="tl-title">First Stars Ignite</div>
+      <div class="tl-stamp">Cosmic Dawn begins</div>
+      <div class="tl-desc">Population III stars — enormous, short-lived giants of pure hydrogen and helium — blazed to life. Far more massive than any star today, they burned hot and fast, forging the first heavy elements (carbon, oxygen, iron) in their cores. When they exploded as supernovae, they scattered these "star stuff" ingredients across the cosmos.</div>
+      <span class="tl-badge">Cosmic Dawn</span>
+    </div></div>
+    <div class="tl-node"><div class="tl-dot"></div></div>
+    <div class="tl-empty"></div>
+  </div>
+
+  <div class="tl-item" data-era="cosmos">
+    <div class="tl-empty"></div>
+    <div class="tl-node"><div class="tl-dot"></div></div>
+    <div class="tl-content"><div class="tl-card">
+      <span class="tl-icon">🌌</span>
+      <div class="tl-era-tag">~400 Million Years · Cosmos</div>
+      <div class="tl-title">First Galaxies Form</div>
+      <div class="tl-stamp">Dark matter halos collapse</div>
+      <div class="tl-desc">Dark matter halos collapsed under gravity, pulling gas into the first protogalaxies — irregular, small, and intensely star-forming. These primitive galaxies merged and grew over billions of years into the grand spirals and ellipticals we observe today with telescopes like Hubble and James Webb.</div>
+      <span class="tl-badge">Galaxy Formation</span>
+    </div></div>
+  </div>
+
+  <div class="tl-item" data-era="cosmos">
+    <div class="tl-content"><div class="tl-card">
+      <span class="tl-icon">🌠</span>
+      <div class="tl-era-tag">~9 Billion Years After BB · Cosmos</div>
+      <div class="tl-title">The Milky Way Forms</div>
+      <div class="tl-stamp">Our home galaxy takes shape</div>
+      <div class="tl-desc">Our galaxy assembled through billions of years of mergers, guided by a central supermassive black hole — Sagittarius A* — weighing 4 million Suns. Today it contains over 200 billion stars in a barred spiral structure about 100,000 light-years across. Our solar system sits about 26,000 light-years from the center.</div>
+      <span class="tl-badge">Our Galaxy</span>
+    </div></div>
+    <div class="tl-node"><div class="tl-dot"></div></div>
+    <div class="tl-empty"></div>
+  </div>
+
+  <div class="tl-item" data-era="life">
+    <div class="tl-empty"></div>
+    <div class="tl-node"><div class="tl-dot"></div></div>
+    <div class="tl-content"><div class="tl-card">
+      <span class="tl-icon">☀️</span>
+      <div class="tl-era-tag">4.6 Billion Years Ago · Earth &amp; Life</div>
+      <div class="tl-title">Our Solar System Born</div>
+      <div class="tl-stamp">From stardust to a star system</div>
+      <div class="tl-desc">A cloud of gas and stardust collapsed under gravity, igniting the Sun at its center. Leftover material clumped into planets, asteroids, and comets. The whole process took only tens of millions of years. Every atom in your body was forged in stars that died before our Sun was born.</div>
+      <span class="tl-badge">Stellar Nebula</span>
+    </div></div>
+  </div>
+
+  <div class="tl-item" data-era="life">
+    <div class="tl-content"><div class="tl-card">
+      <span class="tl-icon">🌍</span>
+      <div class="tl-era-tag">4.5 Billion Years Ago · Earth &amp; Life</div>
+      <div class="tl-title">Earth Forms</div>
+      <div class="tl-stamp">A Mars-sized collision creates our Moon</div>
+      <div class="tl-desc">Earth grew by accretion — countless rock collisions. A Mars-sized body called Theia crashed into young Earth, blasting debris into orbit that coalesced into the Moon. Over millions of years the surface cooled, oceans formed, and a protective atmosphere developed — creating the conditions for life.</div>
+      <span class="tl-badge">Hadean Eon</span>
+    </div></div>
+    <div class="tl-node"><div class="tl-dot"></div></div>
+    <div class="tl-empty"></div>
+  </div>
+
+  <div class="tl-item" data-era="life">
+    <div class="tl-empty"></div>
+    <div class="tl-node"><div class="tl-dot"></div></div>
+    <div class="tl-content"><div class="tl-card">
+      <span class="tl-icon">🦠</span>
+      <div class="tl-era-tag">3.8 Billion Years Ago · Earth &amp; Life</div>
+      <div class="tl-title">Life Emerges on Earth</div>
+      <div class="tl-stamp">First microorganisms in ancient oceans</div>
+      <div class="tl-desc">Single-celled microbes appeared in ancient oceans. Cyanobacteria transformed the atmosphere by producing oxygen through photosynthesis — the Great Oxygenation Event ~2.4 billion years ago. This shift from a methane-rich sky to an oxygen-rich one set the stage for all complex animal life to follow.</div>
+      <span class="tl-badge">Archean Eon · Prokaryotes</span>
+    </div></div>
+  </div>
+
+  <div class="tl-item" data-era="life">
+    <div class="tl-content"><div class="tl-card">
+      <span class="tl-icon">🐟</span>
+      <div class="tl-era-tag">~600 Million Years Ago · Earth &amp; Life</div>
+      <div class="tl-title">Complex Multicellular Life</div>
+      <div class="tl-stamp">The Cambrian Explosion</div>
+      <div class="tl-desc">The Cambrian Explosion (~541 Mya) rapidly produced most major animal body plans. Fish, arthropods, and mollusks proliferated. Life then conquered land ~375 Mya, when lobe-finned fish evolved into the first amphibians, beginning the extraordinary conquest of terrestrial environments.</div>
+      <span class="tl-badge">Cambrian Explosion</span>
+    </div></div>
+    <div class="tl-node"><div class="tl-dot"></div></div>
+    <div class="tl-empty"></div>
+  </div>
+
+  <div class="tl-item" data-era="life">
+    <div class="tl-empty"></div>
+    <div class="tl-node"><div class="tl-dot"></div></div>
+    <div class="tl-content"><div class="tl-card">
+      <span class="tl-icon">🦕</span>
+      <div class="tl-era-tag">230–66 Million Years Ago · Earth &amp; Life</div>
+      <div class="tl-title">Age of Dinosaurs</div>
+      <div class="tl-stamp">165 million years of dominance</div>
+      <div class="tl-desc">Dinosaurs ruled Earth for 165 million years. Their reign ended when a 10-km asteroid struck near the Yucatán Peninsula 66 million years ago, triggering mass extinction through impact winter. Survivors — small feathered dinosaurs — evolved into modern birds, while mammals inherited the ecological stage.</div>
+      <span class="tl-badge">Mesozoic Era · K-Pg Event</span>
+    </div></div>
+  </div>
+
+  <div class="tl-item" data-era="life">
+    <div class="tl-content"><div class="tl-card">
+      <span class="tl-icon">🧠</span>
+      <div class="tl-era-tag">~300,000 Years Ago · Earth &amp; Life</div>
+      <div class="tl-title">Homo Sapiens Appear</div>
+      <div class="tl-stamp">The universe becomes aware of itself</div>
+      <div class="tl-desc">Modern humans emerged in Africa, inheriting brains capable of abstract thought, language, and culture. Within tens of thousands of years we spread to every continent, developed agriculture ~12,000 years ago, built civilizations, and began studying the very cosmos that created us using telescopes and mathematics.</div>
+      <span class="tl-badge">Anthropocene</span>
+    </div></div>
+    <div class="tl-node"><div class="tl-dot"></div></div>
+    <div class="tl-empty"></div>
+  </div>
+
+  <div class="tl-item" data-era="cosmos">
+    <div class="tl-empty"></div>
+    <div class="tl-node"><div class="tl-dot"></div></div>
+    <div class="tl-content"><div class="tl-card">
+      <span class="tl-icon">🔭</span>
+      <div class="tl-era-tag">Today · Cosmos</div>
+      <div class="tl-title">The Modern Universe</div>
+      <div class="tl-stamp">13.8 billion years old and expanding</div>
+      <div class="tl-desc">The universe contains at least 2 trillion galaxies and continues expanding — accelerating under dark energy. Using the James Webb Space Telescope, humanity now peers back to within a few hundred million years of the Big Bang itself. The story is still being written, and you are part of it.</div>
+      <span class="tl-badge">Present Day · Ongoing Expansion</span>
+    </div></div>
+  </div>
+
+</div>
+
+<!-- FACTS -->
+<section id="facts" class="facts-sec">
+  <div class="sec-intro" style="padding-top:0;max-width:100%;text-align:left;max-width:960px;margin:0 auto;">
+    <p class="sec-label">Key Numbers</p>
+    <h2 class="sec-title">The Universe by the Numbers</h2>
+  </div>
+  <div class="facts-grid">
+    <div class="fact-card"><div class="fact-num" data-target="13.8" data-suffix="">0</div><div class="fact-unit">Billion Years</div><div class="fact-label">Age of the Universe</div></div>
+    <div class="fact-card"><div class="fact-num" data-target="2000" data-suffix="">0</div><div class="fact-unit">Trillion Galaxies</div><div class="fact-label">In the Observable Universe</div></div>
+    <div class="fact-card"><div class="fact-num" data-target="4.6" data-suffix="">0</div><div class="fact-unit">Billion Years</div><div class="fact-label">Age of Our Solar System</div></div>
+    <div class="fact-card"><div class="fact-num" data-target="68" data-suffix="%">0</div><div class="fact-unit">Dark Energy</div><div class="fact-label">Driving Cosmic Expansion</div></div>
+    <div class="fact-card"><div class="fact-num" data-target="27" data-suffix="%">0</div><div class="fact-unit">Dark Matter</div><div class="fact-label">Invisible Gravitational Scaffold</div></div>
+    <div class="fact-card"><div class="fact-num" data-target="5" data-suffix="%">0</div><div class="fact-unit">Normal Matter</div><div class="fact-label">Everything You Can See</div></div>
+  </div>
+</section>
+
+<!-- QUIZ -->
+<section id="quiz" class="quiz-sec">
+  <p class="sec-label">Test Your Knowledge</p>
+  <h2 class="sec-title">Cosmic Quiz</h2>
+  <p class="sec-desc" style="color:var(--muted);font-size:0.95rem;font-weight:300;margin-top:0.5rem;">Answer 10 questions and find out your cosmic rank!</p>
+  <div class="quiz-box">
+    <div class="quiz-start" id="quizStart">
+      <span style="font-size:3rem;">🚀</span>
+      <p>Think you know the universe? Prove it — answer 10 questions drawn from the timeline you just explored.</p>
+      <button class="btn" id="startQuizBtn">Launch Quiz</button>
+    </div>
+    <div id="quizGame" class="hidden">
+      <div class="quiz-progress">
+        <div class="quiz-bar-wrap"><div class="quiz-bar" id="qBar" style="width:0%"></div></div>
+        <span class="quiz-q-num" id="qNum">Q 1 / 5</span>
+      </div>
+      <div class="quiz-question" id="qText"></div>
+      <div class="quiz-options" id="qOpts"></div>
+      <div class="quiz-feedback" id="qFeedback"></div>
+    </div>
+    <div id="quizScore" class="quiz-score-wrap hidden">
+      <div style="font-size:2.5rem;margin-bottom:0.8rem;" id="scoreEmoji">🌟</div>
+      <div class="quiz-score-big" id="scoreBig">0/10</div>
+      <div class="quiz-rank" id="scoreRank">Space Cadet</div>
+      <div class="quiz-score-msg" id="scoreMsg"></div>
+      <p id="retryHint" style="display:none;font-family:'Space Mono',monospace;font-size:0.62rem;color:var(--gold);letter-spacing:0.12em;margin-bottom:1rem;">✦ Try again to reveal correct answers!</p>
+      <button class="btn" id="retryBtn">Try Again</button>
+    </div>
+  </div>
+</section>
+
+<!-- METHODOLOGY -->
+<section id="method" class="method-sec">
+  <p class="sec-label">Our Process</p>
+  <h2 class="sec-title">Research Methodology</h2>
+  <p class="sec-desc" style="color:var(--muted);font-size:0.92rem;font-weight:300;margin-top:0.6rem;">This capstone followed a structured workflow from data collection to user-tested publication, using sources including NASA and the European Space Agency.</p>
+  <div class="steps">
+    <div class="step"><div class="step-n">01</div><div><h3>Research &amp; Data Collection</h3><p>Gathered timeline data from NASA and ESA. Events selected for scientific significance and ordered chronologically from the Big Bang to present day.</p></div></div>
+    <div class="step"><div class="step-n">02</div><div><h3>Content Writing</h3><p>Translated complex cosmological narratives into accessible language suitable for student learners, pairing each event with precise timestamps.</p></div></div>
+    <div class="step"><div class="step-n">03</div><div><h3>Design &amp; Development (HTML, CSS, JavaScript)</h3><p>Built the interactive website with a clickable timeline, animations, era filters, an interactive quiz, and particle effects to support visual, textual, and interactive learning styles.</p></div></div>
+    <div class="step"><div class="step-n">04</div><div><h3>Testing, Evaluation &amp; Publishing</h3><p>Conducted user testing with students via surveys and feedback to evaluate usability, engagement, and educational effectiveness. Informed consent was obtained before all testing.</p></div></div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-logo">Big Bang Through Time</div>
+  <div class="footer-sub">An Interactive History · Capstone Project</div>
+  <div class="footer-ref">Content sourced from <a href="https://science.nasa.gov/universe/overview/" target="_blank">NASA Science — Universe Overview</a> &amp; the European Space Agency.</div>
+</footer>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+/* ════════════════════════════════════
+   CANVAS: STARFIELD + SHOOTING STARS
+════════════════════════════════════ */
+const canvas = document.getElementById('bgCanvas');
+const ctx = canvas.getContext('2d');
+let W, H, stars = [], shooters = [];
+
+function resize(){
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+}
+function mkStars(n){
+  stars = Array.from({length:n}, ()=>({
+    x:Math.random()*W, y:Math.random()*H,
+    r:Math.random()*1.2+0.2,
+    a:Math.random()*0.7+0.15,
+    sp:Math.random()*0.006+0.001,
+    ph:Math.random()*Math.PI*2
+  }));
+}
+function spawnShooter(){
+  if(shooters.length>=3) return;
+  shooters.push({
+    x:Math.random()*W*0.8, y:Math.random()*H*0.3,
+    vx:Math.random()*4+3, vy:Math.random()*2+1,
+    len:Math.random()*90+60, alpha:1
+  });
+}
+function drawBg(t){
+  ctx.clearRect(0,0,W,H);
+  // Stars
+  stars.forEach(s=>{
+    const a = s.a*(0.5+0.5*Math.sin(t*s.sp*55+s.ph));
+    ctx.beginPath(); ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
+    ctx.fillStyle=`rgba(255,255,255,${a})`; ctx.fill();
+  });
+  // Shooters
+  shooters = shooters.filter(s=>{
+    s.x+=s.vx; s.y+=s.vy; s.alpha-=0.015;
+    if(s.alpha<=0) return false;
+    const grd = ctx.createLinearGradient(s.x,s.y,s.x-s.vx*s.len/s.vx,s.y-s.vy*s.len/s.vy);
+    grd.addColorStop(0,`rgba(255,240,180,${s.alpha})`);
+    grd.addColorStop(1,'rgba(255,240,180,0)');
+    ctx.beginPath(); ctx.moveTo(s.x,s.y);
+    ctx.lineTo(s.x-s.vx*(s.len/s.vx),s.y-s.vy*(s.len/s.vy));
+    ctx.strokeStyle=grd; ctx.lineWidth=1.5; ctx.stroke();
+    return true;
+  });
+}
+let last=0;
+function loop(ts){
+  const t=ts/1000;
+  if(ts-last>24){drawBg(t);last=ts;}
+  requestAnimationFrame(loop);
+}
+resize(); mkStars(280); requestAnimationFrame(loop);
+window.addEventListener('resize',()=>{resize();mkStars(280);});
+setInterval(spawnShooter, 3200);
+
+/* ════════════════════════════════════
+   CUSTOM CURSOR + COMET TRAIL
+════════════════════════════════════ */
+const cursor = document.getElementById('cursor');
+let mx=0, my=0;
+document.addEventListener('mousemove', e=>{
+  mx=e.clientX; my=e.clientY;
+  cursor.style.left=mx+'px'; cursor.style.top=my+'px';
+  spawnTrailDot(mx,my);
+});
+document.addEventListener('mousedown',()=>cursor.classList.add('click'));
+document.addEventListener('mouseup',()=>cursor.classList.remove('click'));
+
+let trailTimer=0;
+function spawnTrailDot(x,y){
+  const now=Date.now();
+  if(now-trailTimer<35) return;
+  trailTimer=now;
+  const dot=document.createElement('div');
+  dot.className='cursor-dot';
+  dot.style.left=x+'px'; dot.style.top=y+'px';
+  const hue=Math.random()>0.5?45:210;
+  dot.style.background=`hsl(${hue},90%,70%)`;
+  dot.style.width=dot.style.height=(Math.random()*4+2)+'px';
+  document.body.appendChild(dot);
+  setTimeout(()=>dot.remove(),620);
+}
+
+/* ════════════════════════════════════
+   PARTICLE BURST ON CLICK
+════════════════════════════════════ */
+function burst(x,y,era){
+  const colors={origin:['#d4a843','#ffd580','#ff9b50'],cosmos:['#4db8ff','#a47fff','#80e0ff'],life:['#50e3a4','#a8ff78','#7effcf']};
+  const palette = colors[era] || colors.origin;
+  for(let i=0;i<16;i++){
+    const p=document.createElement('div');
+    p.className='particle';
+    const angle=Math.random()*Math.PI*2;
+    const dist=Math.random()*80+30;
+    p.style.left=x+'px'; p.style.top=y+'px';
+    p.style.setProperty('--px',Math.cos(angle)*dist+'px');
+    p.style.setProperty('--py',Math.sin(angle)*dist+'px');
+    p.style.width=p.style.height=(Math.random()*5+3)+'px';
+    p.style.background=palette[Math.floor(Math.random()*palette.length)];
+    p.style.boxShadow=`0 0 6px ${palette[0]}`;
+    document.body.appendChild(p);
+    setTimeout(()=>p.remove(),950);
+  }
+}
+
+/* ════════════════════════════════════
+   HERO MOUSE PARALLAX
+════════════════════════════════════ */
+const l1=document.getElementById('layer1');
+const l2=document.getElementById('layer2');
+document.addEventListener('mousemove',e=>{
+  const rx=(e.clientX/window.innerWidth-0.5)*2;
+  const ry=(e.clientY/window.innerHeight-0.5)*2;
+  l1.style.transform=`translate(${rx*18}px,${ry*12}px)`;
+  l2.style.transform=`translate(${rx*-28}px,${ry*-18}px)`;
+});
+
+/* ════════════════════════════════════
+   SCROLL PROGRESS BAR
+════════════════════════════════════ */
+const pb=document.getElementById('progressBar');
+window.addEventListener('scroll',()=>{
+  const pct=window.scrollY/(document.body.scrollHeight-window.innerHeight)*100;
+  pb.style.width=pct+'%';
+});
+
+/* ════════════════════════════════════
+   TIMELINE REVEAL + CLICK
+════════════════════════════════════ */
+const tlItems=document.querySelectorAll('.tl-item');
+const revObs=new IntersectionObserver(entries=>{
+  entries.forEach(e=>{if(e.isIntersecting){e.target.classList.add('visible');revObs.unobserve(e.target);}});
+},{threshold:0.15});
+tlItems.forEach(i=>revObs.observe(i));
+
+tlItems.forEach(item=>{
+  item.addEventListener('click',e=>{
+    const wasActive=item.classList.contains('active');
+    tlItems.forEach(i=>i.classList.remove('active'));
+    if(!wasActive){
+      item.classList.add('active');
+      burst(e.clientX,e.clientY,item.dataset.era);
+    }
+  });
+});
+
+/* ════════════════════════════════════
+   ERA FILTER
+════════════════════════════════════ */
+const eraButtons=document.querySelectorAll('.era-btn');
+eraButtons.forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    eraButtons.forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    const era=btn.dataset.era;
+    tlItems.forEach(item=>{
+      if(era==='all'||item.dataset.era===era){
+        item.classList.remove('hidden-filter');
+      } else {
+        item.classList.add('hidden-filter');
+      }
+    });
+  });
+});
+
+/* ════════════════════════════════════
+   COUNT-UP ANIMATION
+════════════════════════════════════ */
+const counters=document.querySelectorAll('.fact-num[data-target]');
+const countObs=new IntersectionObserver(entries=>{
+  entries.forEach(e=>{
+    if(e.isIntersecting){
+      const el=e.target;
+      const target=parseFloat(el.dataset.target);
+      const suffix=el.dataset.suffix||'';
+      const duration=2200;
+      let start=null;
+      function step(ts){
+        if(!start) start=ts;
+        const progress=Math.min((ts-start)/duration,1);
+        const ease=1-Math.pow(1-progress,3);
+        const val=target*ease;
+        el.textContent=(target>=100?Math.round(val):val.toFixed(target<10?1:0))+suffix;
+        if(progress<1) requestAnimationFrame(step);
+        else el.textContent=target+suffix;
+      }
+      requestAnimationFrame(step);
+      countObs.unobserve(el);
+    }
+  });
+},{threshold:0.5});
+counters.forEach(c=>countObs.observe(c));
+
+/* ════════════════════════════════════
+   QUIZ
+════════════════════════════════════ */
+const questions=[
+  {q:"What was the approximate temperature of the universe immediately after the Big Bang?",
+   opts:["10³² Kelvin","100°C (boiling water)","0 Kelvin (absolute zero)","10⁶ Kelvin"],
+   ans:0, expl:"The Big Bang produced temperatures exceeding 10³² K — hotter than anything physics can currently describe!"},
+  {q:"What percentage of the universe is made of 'normal' matter that we can see and touch?",
+   opts:["50%","27%","68%","5%"],
+   ans:3, expl:"Only 5% of the universe is normal matter. The rest is 27% dark matter and 68% dark energy — both invisible!"},
+  {q:"What is the Cosmic Microwave Background (CMB)?",
+   opts:["A type of distant galaxy","The oldest light in the universe","A NASA space telescope","A cloud of dark matter"],
+   ans:1, expl:"The CMB is ancient light released 380,000 years after the Big Bang, when the universe became transparent for the first time."},
+  {q:"How old is our Solar System?",
+   opts:["13.8 billion years","65 million years","4.6 billion years","1 billion years"],
+   ans:2, expl:"Our Solar System formed about 4.6 billion years ago from a collapsing cloud of gas and stardust."},
+  {q:"What ended the Cosmic Dark Ages and filled the universe with light again?",
+   opts:["Formation of the Milky Way","The Big Bang's afterglow","The first stars igniting","Earth forming its atmosphere"],
+   ans:2, expl:"Population III stars — the first stars — ended the Cosmic Dark Ages by flooding the universe with ultraviolet radiation, a moment called Cosmic Dawn."},
+  {q:"How long did the Big Bang Nucleosynthesis process last?",
+   opts:["About 20 minutes","3 billion years","380,000 years","1 microsecond"],
+   ans:0, expl:"Nucleosynthesis lasted only about 20 minutes before the universe cooled too much for further fusion — creating all the universe's primordial helium."},
+  {q:"What is Sagittarius A*?",
+   opts:["A famous star in the Milky Way","The supermassive black hole at the center of the Milky Way","A satellite galaxy of the Milky Way","A type of supernova"],
+   ans:1, expl:"Sagittarius A* is the supermassive black hole at the center of our galaxy, weighing about 4 million times the mass of our Sun."},
+  {q:"What body collided with early Earth to form the Moon?",
+   opts:["A giant comet","The asteroid Theia","A Mars-sized body called Theia","Jupiter's gravitational pull"],
+   ans:2, expl:"A Mars-sized body called Theia crashed into young Earth, blasting debris into orbit that eventually coalesced into the Moon."},
+  {q:"What was the Great Oxygenation Event caused by?",
+   opts:["Volcanic eruptions releasing oxygen","Cyanobacteria producing oxygen through photosynthesis","The impact that killed the dinosaurs","Solar radiation splitting water molecules"],
+   ans:1, expl:"Cyanobacteria transformed Earth's atmosphere about 2.4 billion years ago by producing oxygen through photosynthesis, setting the stage for complex life."},
+  {q:"What fraction of a second did Cosmic Inflation occur in?",
+   opts:["The first 3 minutes","About 380,000 years","Starting at 10⁻³⁶ seconds, lasting a tiny fraction of a second","The first billion years"],
+   ans:2, expl:"Cosmic Inflation began at around 10⁻³⁶ seconds and lasted an incredibly brief time, yet stretched the universe from subatomic to macroscopic scale."}
+];
+
+let qIdx=0, score=0, answered=false, attemptCount=0;
+const startBtn=document.getElementById('startQuizBtn');
+const retryBtn=document.getElementById('retryBtn');
+const qStart=document.getElementById('quizStart');
+const qGame=document.getElementById('quizGame');
+const qScore=document.getElementById('quizScore');
+const qText=document.getElementById('qText');
+const qOpts=document.getElementById('qOpts');
+const qFeedback=document.getElementById('qFeedback');
+const qBar=document.getElementById('qBar');
+const qNum=document.getElementById('qNum');
+
+function startQuiz(){
+  qIdx=0; score=0; answered=false;
+  attemptCount++;
+  qStart.classList.add('hidden');
+  qScore.classList.add('hidden');
+  qGame.classList.remove('hidden');
+  showQ();
+}
+function showQ(){
+  answered=false;
+  qFeedback.textContent='';
+  qFeedback.className='quiz-feedback';
+  const q=questions[qIdx];
+  qNum.textContent=`Q ${qIdx+1} / ${questions.length}`;
+  qBar.style.width=(qIdx/questions.length*100)+'%';
+  qText.textContent=q.q;
+  qOpts.innerHTML='';
+  q.opts.forEach((opt,i)=>{
+    const btn=document.createElement('button');
+    btn.className='quiz-opt'; btn.textContent=opt;
+    btn.addEventListener('click',()=>pickAnswer(i,btn));
+    qOpts.appendChild(btn);
+  });
+}
+function pickAnswer(i,btn){
+  if(answered) return;
+  answered=true;
+  const q=questions[qIdx];
+  const btns=qOpts.querySelectorAll('.quiz-opt');
+  btns.forEach(b=>b.disabled=true);
+  const showCorrect = attemptCount >= 2; // Only reveal correct answer from 2nd attempt onward
+  if(i===q.ans){
+    score++;
+    btn.classList.add('correct');
+    qFeedback.textContent='✓ Correct! '+q.expl;
+    qFeedback.className='quiz-feedback good';
+    burst(btn.getBoundingClientRect().left+btn.offsetWidth/2, btn.getBoundingClientRect().top+btn.offsetHeight/2, 'life');
+  } else {
+    btn.classList.add('wrong');
+    if(showCorrect){
+      btns[q.ans].classList.add('correct');
+      qFeedback.textContent='✗ Not quite. '+q.expl;
+    } else {
+      qFeedback.textContent='✗ Not quite. Try again next time to see the correct answer!';
+    }
+    qFeedback.className='quiz-feedback bad';
+  }
+  setTimeout(()=>{
+    qIdx++;
+    if(qIdx<questions.length) showQ();
+    else showScore();
+  },2000);
+}
+function showScore(){
+  qGame.classList.add('hidden');
+  qScore.classList.remove('hidden');
+  document.getElementById('scoreBig').textContent=score+'/'+questions.length;
+  const ranks=[
+    {min:9,rank:'🌌 Cosmic Genius',emoji:'🏆',msg:'Near-perfect or perfect score! You know the universe better than most astronomers. Incredible!'},
+    {min:7,rank:'⭐ Stellar Scholar',emoji:'🌟',msg:'Outstanding! You clearly paid close attention to the timeline. Well done!'},
+    {min:5,rank:'🌙 Space Explorer',emoji:'🚀',msg:'Solid effort! Review a few events on the timeline and try again for a perfect score.'},
+    {min:3,rank:'🪐 Astronomy Apprentice',emoji:'🔭',msg:'Good start! Explore the timeline a bit more and you\'ll get there.'},
+    {min:0,rank:'☄️ Space Cadet',emoji:'🌑',msg:'The universe is vast — and so is the learning ahead! Give the timeline another read.'},
+  ];
+  const r=ranks.find(x=>score>=x.min);
+  document.getElementById('scoreEmoji').textContent=r.emoji;
+  document.getElementById('scoreRank').textContent=r.rank;
+  document.getElementById('scoreMsg').textContent=r.msg;
+  const retryHint=document.getElementById('retryHint');
+  if(attemptCount===1 && retryHint) retryHint.style.display='block';
+  if(score>=8) setTimeout(()=>burst(window.innerWidth/2,window.innerHeight/2,'life'),100);
+}
+startBtn.addEventListener('click',startQuiz);
+retryBtn.addEventListener('click',startQuiz);
+
+/* ════════════════════════════════════
+   RANDOM TOAST FACTS
+════════════════════════════════════ */
+const toastFacts=[
+  "<strong>Did you know?</strong> There are more stars in the universe than grains of sand on all Earth's beaches.",
+  "<strong>Fun fact!</strong> The Milky Way's central black hole weighs as much as 4 million Suns.",
+  "<strong>Wow!</strong> Every atom of calcium in your bones was forged inside an ancient star.",
+  "<strong>Think about this:</strong> Light from the Sun takes 8 minutes to reach you. Light from other galaxies takes billions of years.",
+  "<strong>Mind-blowing:</strong> The universe was opaque for its first 380,000 years — like a cosmic fog that light couldn't escape.",
+];
+const toast=document.getElementById('toast');
+let toastIdx=0;
+function showToast(){
+  toast.innerHTML=toastFacts[toastIdx%toastFacts.length];
+  toastIdx++;
+  toast.classList.add('show');
+  setTimeout(()=>toast.classList.remove('show'),4500);
+}
+setTimeout(()=>{showToast();setInterval(showToast,15000);},8000);
+
+/* ════════════════════════════════════
+   SEARCH
+════════════════════════════════════ */
+/* ════════════════════════════════════
+   SEARCH (Local + Web via Wikipedia)
+════════════════════════════════════ */
+const searchInput=document.getElementById('searchInput');
+const searchInfo=document.getElementById('searchInfo');
+const searchDropdown=document.getElementById('searchDropdown');
+const sdLocal=document.getElementById('sdLocal');
+const sdWeb=document.getElementById('sdWeb');
+const sdTabs=document.querySelectorAll('.sd-tab');
+let activeTab='local';
+let webDebounce=null;
+
+// Tab switching
+sdTabs.forEach(tab=>{
+  tab.addEventListener('click',()=>{
+    sdTabs.forEach(t=>t.classList.remove('active'));
+    tab.classList.add('active');
+    activeTab=tab.dataset.tab;
+    document.querySelectorAll('.sd-panel').forEach(p=>p.classList.remove('active'));
+    document.getElementById('sd'+activeTab.charAt(0).toUpperCase()+activeTab.slice(1)).classList.add('active');
+    updateInfo();
+  });
+});
+
+function updateInfo(){
+  const panel=activeTab==='local'?sdLocal:sdWeb;
+  const count=panel.querySelectorAll('.sd-item').length;
+  if(!searchInput.value.trim()){searchInfo.textContent='';return;}
+  if(panel.querySelector('.sd-loading')){searchInfo.textContent='Searching…';return;}
+  if(panel.querySelector('.sd-empty')){searchInfo.textContent='No results found';return;}
+  searchInfo.textContent=`${count} result${count!==1?'s':''} found`;
+}
+
+// ── LOCAL SEARCH ──
+function getCardData(){
+  return [...tlItems].map(item=>{
+    const card=item.querySelector('.tl-card');
+    return{item,icon:card.querySelector('.tl-icon')?.textContent||'',era:item.dataset.era||'origin',eraTag:card.querySelector('.tl-era-tag')?.textContent||'',title:card.querySelector('.tl-title')?.textContent||'',stamp:card.querySelector('.tl-stamp')?.textContent||'',desc:card.querySelector('.tl-desc')?.textContent||''};
+  });
+}
+function hl(text,q){
+  if(!q) return text;
+  return text.replace(new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`, 'gi'),'<mark style="background:rgba(212,168,67,0.35);color:var(--gold);border-radius:2px;padding:0 2px;">$1</mark>');
+}
+function renderLocal(query){
+  const q=query.toLowerCase();
+  sdLocal.innerHTML='';
+  if(!q) return;
+  const matches=getCardData().filter(c=>(c.title+c.stamp+c.desc+c.eraTag).toLowerCase().includes(q));
+  if(!matches.length){sdLocal.innerHTML='<div class="sd-empty">No timeline events match — try the 🌐 Web Search tab</div>';return;}
+  matches.forEach(c=>{
+    const div=document.createElement('div');
+    div.className='sd-item';
+    div.innerHTML=`<div class="sd-icon">${c.icon}</div><div class="sd-body"><div class="sd-era ${c.era}">${c.eraTag}</div><div class="sd-title">${hl(c.title,query)}</div><div class="sd-stamp">${c.stamp}</div><div class="sd-desc">${hl(c.desc,query)}</div></div>`;
+    div.addEventListener('click',()=>{
+      searchDropdown.classList.remove('open');
+      searchInput.value=''; searchInfo.textContent='';
+      tlItems.forEach(i=>i.classList.remove('active'));
+      c.item.classList.add('active','visible');
+      window.scrollTo({top:c.item.getBoundingClientRect().top+window.scrollY-120,behavior:'smooth'});
+    });
+    sdLocal.appendChild(div);
+  });
+}
+
+// ── WEB SEARCH (Wikipedia API) ──
+async function searchWikipedia(query){
+  sdWeb.innerHTML='<div class="sd-loading">🔭 Searching the cosmos…</div>';
+  updateInfo();
+  try{
+    const url=`https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&srlimit=6&srnamespace=0&format=json&origin=*`;
+    const res=await fetch(url);
+    const data=await res.json();
+    const results=data?.query?.search||[];
+    sdWeb.innerHTML='';
+    if(!results.length){sdWeb.innerHTML='<div class="sd-empty">No web results found</div>';updateInfo();return;}
+    results.forEach(r=>{
+      const snippet=r.snippet.replace(/<[^>]+>/g,'');
+      const wikiUrl=`https://en.wikipedia.org/wiki/${encodeURIComponent(r.title.replace(/ /g,'_'))}`;
+      const div=document.createElement('div');
+      div.className='sd-item';
+      div.innerHTML=`
+        <div class="sd-icon">🌐</div>
+        <div class="sd-body">
+          <div class="sd-era web">Wikipedia <span class="sd-web-badge">Web</span></div>
+          <div class="sd-title">${r.title}</div>
+          <div class="sd-desc">${snippet}…</div>
+          <a class="sd-open-link" href="${wikiUrl}" target="_blank" rel="noopener">↗ Open on Wikipedia</a>
+        </div>`;
+      // Open link should not close dropdown — stop propagation
+      div.querySelector('.sd-open-link').addEventListener('click',e=>e.stopPropagation());
+      div.addEventListener('click',()=>{ window.open(wikiUrl,'_blank','noopener'); });
+      sdWeb.appendChild(div);
+    });
+    updateInfo();
+  }catch(err){
+    sdWeb.innerHTML='<div class="sd-empty">Could not reach Wikipedia — check your connection</div>';
+    updateInfo();
+  }
+}
+
+// ── MAIN INPUT HANDLER ──
+searchInput.addEventListener('input',()=>{
+  const query=searchInput.value.trim();
+  if(!query){
+    searchDropdown.classList.remove('open');
+    sdLocal.innerHTML=''; sdWeb.innerHTML='';
+    searchInfo.textContent='';
+    return;
+  }
+  renderLocal(query);
+  // Debounce Wikipedia search
+  clearTimeout(webDebounce);
+  webDebounce=setTimeout(()=>searchWikipedia(query),500);
+  searchDropdown.classList.add('open');
+  updateInfo();
+});
+
+// Close on outside click
+document.addEventListener('click',e=>{
+  if(!e.target.closest('.search-wrap')) searchDropdown.classList.remove('open');
+});
+searchInput.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){searchDropdown.classList.remove('open');searchInput.blur();}
+});
+// Re-open on focus if has query
+searchInput.addEventListener('focus',()=>{
+  if(searchInput.value.trim()) searchDropdown.classList.add('open');
+});
+
+/* ════════════════════════════════════
+   KEYBOARD NAVIGATION
+════════════════════════════════════ */
+document.addEventListener('keydown',e=>{
+  const visible=[...tlItems].filter(i=>!i.classList.contains('hidden-filter'));
+  const activeIdx=visible.findIndex(i=>i.classList.contains('active'));
+  if(e.key==='ArrowDown'||e.key==='ArrowRight'){
+    e.preventDefault();
+    const next=activeIdx<visible.length-1?activeIdx+1:0;
+    tlItems.forEach(i=>i.classList.remove('active'));
+    visible[next].classList.add('active');
+    visible[next].scrollIntoView({behavior:'smooth',block:'center'});
+  }
+  if(e.key==='ArrowUp'||e.key==='ArrowLeft'){
+    e.preventDefault();
+    const prev=activeIdx>0?activeIdx-1:visible.length-1;
+    tlItems.forEach(i=>i.classList.remove('active'));
+    visible[prev].classList.add('active');
+    visible[prev].scrollIntoView({behavior:'smooth',block:'center'});
+  }
+  if(e.key==='Escape') tlItems.forEach(i=>i.classList.remove('active'));
+});
+</script>
+</body>
+</html>
